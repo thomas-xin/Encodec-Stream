@@ -13,7 +13,7 @@ if __name__ == "__main__":
 			"Usage (arguments in parentheses are optional):\n"
 			+ f"Get ECDC info: {sys.argv[0]} -i <file-or-url>\n"
 			+ f"Decode ECDC->PCM: {sys.argv[0]} (-ss <seek-start> -to <seek-end> -g <cuda-device>) -d <file-or-url>\n"
-			+ f"Encode PCM->ECDC: {sys.argv[0]} (-b <bitrate> -n <song-name> -s <source-url> -g <cuda-device>) -e <file-or-url>\n"
+			+ f"Encode PCM->ECDC: {sys.argv[0]} (-b <bitrate> -n <song-name> -s <source-url> -g <cuda-device>) -e <file>\n"
 		)
 	if "-d" in sys.argv:
 		mode = "decode"
