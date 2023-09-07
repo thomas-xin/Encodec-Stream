@@ -15,6 +15,9 @@ This program attempts to mitigate the issues associated with the format:
   - This enables the first segment to be streamed as soon as possible, seamlessly blending into the subsequent segments, and the increasing window size allows overhead to be reduced as decoding continues, approaching (but never reaching) 100% efficiency, starting from 50%.
 
 ## Usage
+- Python must be installed.
+- Encodec must first be installed (`pip install git+https://github.com/facebookresearch/encodec`).
+- FFmpeg should be installed for best results (https://ffmpeg.org).
 ```
 Usage (arguments in parentheses are optional):
 Get ECDC info: ecdc_stream.py -i <file-or-url>
