@@ -5,10 +5,14 @@ A somewhat lightweight wrapper around [Encodec](https://github.com/facebookresea
 By nature, the ECDC format was originally intended to be encoded and decoded in a single step. This makes it efficient, but makes streaming incredibly difficult.
 This program attempts to mitigate the issues associated with the format:
 - The encoded audio is split into segments, each of which may be decoded separately, but must be decoded together in normal operation, else the audio stutters in between.
-- Decoding two segments in one steps connects them, however the second segment will still stutter when transitioning into the third.
+- For instance, decoding two segments in one steps connects them, however the second segment will still stutter when transitioning into the third.
 - Decoding three causes the same issue with the fourth, and so on, meaning there is no way to perfectly decode and stream audio without re-decoding some segments more than once.
-- A possible solution is to decode windows of three segments at a time, only outputting the central one at any given time. This would function as a working stream, however introduces a +200% computational overhead due to needing to process three times the data.
-- The proposed solution used in this program 
+- A possible solution is to decode windows of three segments at a time, only outputting the central one at any given time. This would function as a working stream, however introduces a +200% computational overhead due to needing to process three times the data. This is a big deal as encodec is already significantly more computationally expensive than any other standard audio format.
+- The proposed solution used in this program is to process the audio in increasing window sizes;
+  - the first iteration will process the first two segments in order to return the first;
+  - the second iteration will process the first to fourth segments in order to return the second and third;
+  - the third iteration will process the third to seventh segments in order to return the fourth to sixth, and so on.
+  - This enables the first segment to be streamed as soon as possible, seamlessly blending into the subsequent segments, and the increasing window size allows overhead to be reduced as decoding continues, approaching (but never reaching) 100% efficiency, starting from 50%.
 
 ## Usage
 ```
