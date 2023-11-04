@@ -27,6 +27,6 @@ Encode PCM->ECDC: ecdc_stream.py (-b <bitrate> -n <song-name> -s <source-url> -g
 
 - The program takes streamed inputs and outputs as PCM via stdin and stdout respectively, making it easy to integrate as a subprocess.
 - This is similar to, and intentionally designed to be compatible with `ffmpeg -f s16le -ac 2 -ar 48k (-i) -` and similar programs.
-- A simple use case for playing a .ecdc file without needing to process all data would be `py ecdc_stream.py <ecdc_file> | ffplay -f s16le -ac 2 -ar 48k -i -`.
+- A simple use case for playing a .ecdc file without needing to process all data would be `py ecdc_stream.py -d <ecdc_file> | ffplay -f s16le -ac 2 -ar 48k -i -`.
 - Encoding any song to .ecdc can be done via `ffmpeg -i <song> -f s16le -ac 2 -ar 48k - | py ecdc_stream.py -b <bitrate> -e <file>`.
 - If not specified, the cuda-device automatically takes a random GPU if possible, falling back to CPU inference otherwise.
