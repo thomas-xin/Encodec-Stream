@@ -33,4 +33,4 @@ Encode PCM->ECDC: ecdc_stream.py (-b <bitrate> -n <song-name> -s <source-url> -g
 
 ## Hardware Requirements
 - A NVIDIA GPU (minimum GTX650) is recommended for both performance and efficiency, however any CPU with ~50 GFLOPS of performance (minimum Ryzen 5 5625U) should be capable of decoding and playing a realtime audio stream.
-- 1GB of RAM/VRAM (even in the GTX650) is more than sufficient for most everyday audio files. The increasing window algorithm has a space complexity of **O(sqrt n)**, meaning memory consumption is not typically a concern with encoding/decoding through Encodec.
+- 2GB of RAM, or 1GB of RAM and 1GB of VRAM (such as in the GTX650) is more than sufficient for most everyday audio files. The increasing window algorithm has a space complexity of **O(sqrt n)**, meaning memory consumption is not typically a concern with encoding/decoding through Encodec. While running however, the PyTorch libraries may use up to 1GB, hence the conservative estimate.
