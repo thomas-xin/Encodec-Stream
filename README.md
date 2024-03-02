@@ -30,3 +30,7 @@ Encode PCM->ECDC: ecdc_stream.py (-b <bitrate> -n <song-name> -s <source-url> -g
 - A simple use case for playing a .ecdc file without needing to process all data would be `py ecdc_stream.py -d <ecdc_file> | ffplay -f s16le -ac 2 -ar 48k -i -`.
 - Encoding any song to .ecdc can be done via `ffmpeg -i <song> -f s16le -ac 2 -ar 48k - | py ecdc_stream.py -b <bitrate> -e <file>`.
 - If not specified, the cuda-device automatically takes a random GPU if possible, falling back to CPU inference otherwise.
+
+## Hardware Requirements
+- A NVIDIA GPU (minimum GTX650) is recommended for both performance and efficiency, however any CPU with ~50 GFLOPS of performance (minimum Ryzen 5 5625U) should be capable of decoding and playing a realtime audio stream.
+- 1GB of RAM/VRAM (even in the GTX650) is more than sufficient for most everyday audio files. The increasing window algorithm has a space complexity of **O(sqrt n)**, meaning memory consumption is not typically a concern with encoding/decoding through Encodec.
