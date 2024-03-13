@@ -12,7 +12,11 @@ This program attempts to mitigate the issues associated with the format:
   - the first iteration will process the first two segments in order to return the first;
   - the second iteration will process the first to fourth segments in order to return the second and third;
   - the third iteration will process the third to seventh segments in order to return the fourth to sixth, and so on.
-  - This enables the first segment to be streamed as soon as possible, seamlessly blending into the subsequent segments, and the increasing window size allows overhead to be reduced as decoding continues, approaching (but never reaching) 100% efficiency, starting from 50%.
+  - This enables the first segment to be streamed as soon as possible, seamlessly blending into the subsequent segments, and the increasing window size allows overhead to be reduced as decoding continues.
+
+
+Example GPU usage trend during decoding (note the linearly increasing gap between each window):
+![GPU usage trend during decoding](https://mizabot.xyz/u/EOVY6jGAAII.png)
 
 ## Usage
 - Python must be installed.
@@ -21,7 +25,7 @@ This program attempts to mitigate the issues associated with the format:
 ```
 Usage (arguments in parentheses are optional):
 Get ECDC info: ecdc_stream.py -i <file-or-url>
-Decode ECDC->PCM: ecdc_stream.py (-ss <seek-start> -to <seek-end> -g <cuda-device>) -d <file-or-url>
+Decode ECDC->PCM: ecdc_stream.py (-ss <seek-start> -to <seek-end> -b <buffer-size> -g <cuda-device>) -d <file-or-url>
 Encode PCM->ECDC: ecdc_stream.py (-b <bitrate> -n <song-name> -s <source-url> -g <cuda-device>) -e <file>
 ```
 
@@ -30,6 +34,16 @@ Encode PCM->ECDC: ecdc_stream.py (-b <bitrate> -n <song-name> -s <source-url> -g
 - A simple use case for playing a .ecdc file without needing to process all data would be `py ecdc_stream.py -d <ecdc_file> | ffplay -f s16le -ac 2 -ar 48k -i -`.
 - Encoding any song to .ecdc can be done via `ffmpeg -i <song> -f s16le -ac 2 -ar 48k - | py ecdc_stream.py -b <bitrate> -e <file>`.
 - If not specified, the cuda-device automatically takes a random GPU if possible, falling back to CPU inference otherwise.
+- The `-i` "info" mode of the program outputs a yaml-style list as follows (example):
+  - Version: 192
+  - Duration: 244.3668125
+  - Bitrate: 24
+  - M: encodec_48khz
+  - AL: 11729607
+  - NC: 16
+  - LM: False
+- When decoding (`-d`), the initial window size may be increased by specifying the bufsize (`-b`) parameter. This defaults to 1, which starts with a window size of 1 (lowest latency, Õ(2n) time complexity), increasing by 1 each time (amortised constant latency, Õ(n + sqrt(n)) time complexity). A value of 2 would start with a window size of 2 (slightly higher latency, Õ(3n/2) time complexity), increasing by 2 each time, and so on.
+  - A value of 0 may be specified to bypass the windowing completely, which will buffer the entire file before outputting (similar to the original Encodec implementation). This reduces the overhead to 0% or Õ(n) immediately, but has the drawback of much higher latency particularly on weaker hardware or longer files.
 
 ## Hardware Requirements
 - A NVIDIA GPU (minimum GTX650) is recommended for both performance and efficiency, however any CPU with ~50 GFLOPS of performance (minimum Ryzen 5 5625U) should be capable of decoding and playing a realtime audio stream.
