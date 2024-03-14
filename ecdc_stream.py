@@ -196,6 +196,7 @@ def stream_from_file(fo: tp.IO[bytes], s_start: float = 0, s_end: float = 0, dev
 		cut = 0
 	i = -1
 	skipped = 0
+	written = False
 	for offset in range(0, max_length, segment_stride):
 		# This section is the original ecdc decoder
 		this_segment_length = min(audio_length - offset, segment_length)
@@ -241,11 +242,11 @@ def stream_from_file(fo: tp.IO[bytes], s_start: float = 0, s_end: float = 0, dev
 		# Problem: Streaming the audio requires the first packet to be read asap, however each packet does not perfectly blend into the next unless both are decoded as one packet, which then does not perfectly blend into the packet after.
 		# Possible solution: Read windows of 3 consecutive packets at once, only outputting the central packet at any given time. This will decode the sequence perfectly; however this means a +200% computational overhead due to having to decode 3x the data compared to a single decode on the entire file.
 		# Proposed solution: Grab audio packets in sequence of triangle numbers -1; i.e. packets will be gathered and converted on iterations 0, 2, 5, 9, 14 etc. This iteratively expands the window, reducing computational overhead from window overlap later on, while still allowing the first window to be streamed as soon as possible. If the file is long enough, computational overhead approaches 0%.
-		if len(frames) >= (bufsize * 2) and ((i * 8 * + 1) * bufsize) ** 0.5 % 1 == 0 or offset + segment_stride >= max_length:
+		if offset + segment_stride >= max_length or len(frames) >= bufsize * 2 and ((i * 8 * + 1) * bufsize) ** 0.5 % 1 == 0:
 			with torch.no_grad():
 				wav = model.decode(frames)
 			# Only include first window if on the initial iteration; skip otherwise as it is only used to bridge from the last window
-			if len(frames) < 3:
+			if not written:
 				start = 0
 			else:
 				start = segment_stride
@@ -259,6 +260,7 @@ def stream_from_file(fo: tp.IO[bytes], s_start: float = 0, s_end: float = 0, dev
 				start += skipped
 				skipped = 0
 			yield wav[0, :, start:end], model.sample_rate
+			written = True
 			frames = [frames[-2], frames[-1]]
 		i += 1
 
@@ -293,7 +295,10 @@ def stream_to_file(fo: tp.IO[bytes], use_lm: bool = False, hq: bool = True, bitr
 
 	dtype = torch.float32# if device in (-1, "cpu") else torch.float16
 	data = sys.stdin.buffer.read()
-	wav = torch.frombuffer(data, dtype=torch.int16).reshape((len(data) // 4, 2)).T.to(device=device)
+	if hq:
+		wav = torch.frombuffer(data, dtype=torch.int16).reshape((len(data) // 4, 2)).T.to(device=device)
+	else:
+		wav = torch.frombuffer(data, dtype=torch.int16).reshape((len(data) // 2, 1)).T.to(device=device)
 	high = 32767 + (-32768 in wav)
 	wav = wav.to(dtype)
 	wav *= 1 / high
