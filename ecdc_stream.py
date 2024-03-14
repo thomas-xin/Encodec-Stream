@@ -299,12 +299,14 @@ def stream_to_file(fo: tp.IO[bytes], use_lm: bool = False, hq: bool = True, bitr
 	hq = hq and bitrate >= 3
 	sr = 48000 if hq else 24000
 	r = math.log2(bitrate / 3)
-	if r < -1:
-		r = -1 + r % 1
-	if r >= 4:
-		r = 3 + r % 1
 	target_br = 3 * 2 ** (r // 1)
 	sr_scale = 2 ** (r % 1)
+	if target_br < 1.5:
+		sr_scale *= target_br / 1.5
+		target_br = 1.5
+	elif target_br > 24:
+		sr_scale *= target_br / 24
+		target_br = 24
 	target_sr = int(round(sr * sr_scale))
 	if target_sr != 48000:
 		args = ["ffmpeg", "-hide_banner", "-v", "error", "-f", "s16le", "-ac", "2", "-ar", "48k", "-i", "-", "-f", "s16le", "-ac", ("2" if hq else "1"), "-ar", str(target_sr), "-"]
