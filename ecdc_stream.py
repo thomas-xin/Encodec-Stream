@@ -86,7 +86,7 @@ if __name__ == "__main__":
 		if "n" in metadata:
 			print("Name:", json.dumps(metadata.pop("n")))
 		if "al" in metadata:
-			print("Duration:", metadata["al"] / float(metadata.get("m", "_48").rsplit("_", 1)[-1].removesuffix("khz")) / 1000)
+			print("Duration:", metadata["al"] / float(metadata.get("m", "_48").rsplit("_", 1)[-1].removesuffix("khz")) / 1000 * 48000 / metadata.get("sr", 48000))
 		if "sr" in metadata:
 			print("Sample Rate:", metadata.pop("sr"))
 		if "br" in metadata:
