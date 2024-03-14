@@ -277,7 +277,8 @@ def stream_from_file(fo: tp.IO[bytes], s_start: float = 0, s_end: float = 0, dev
 					skipped = 0
 				yield wav[0, :, start:end], model.sample_rate
 				written = True
-				frames = [frames[-2], frames[-1]]
+				if len(frames) > 2:
+					frames = [frames[-2], frames[-1]]
 			i += 1
 	return outputs, write_to()
 
