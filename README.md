@@ -30,7 +30,7 @@ Encode PCM->ECDC: ecdc_stream.py (-b <bitrate> -n <song-name> -s <source-url> -g
 ```
 
 - The program takes streamed inputs and outputs as PCM via stdin and stdout respectively, making it easy to integrate as a subprocess.
-- This is similar to, and intentionally designed to be compatible with `ffmpeg -f s16le -ac 2 -ar 48k (-i) -` and similar programs.
+- This is similar to, and intentionally designed to be compatible with `ffplay -f s16le -ac 2 -ar 48k (-i) -` and similar programs.
 - A simple use case for playing a .ecdc file without needing to process all data would be `py ecdc_stream.py -d <ecdc_file> | ffplay -f s16le -ac 2 -ar 48k -i -`.
 - Encoding any song to .ecdc can be done via `ffmpeg -i <song> -f s16le -ac 2 -ar 48k - | py ecdc_stream.py -b <bitrate> -e <file>`.
 - If not specified, the cuda-device automatically takes a random GPU if possible, falling back to CPU inference otherwise.
@@ -42,9 +42,9 @@ Encode PCM->ECDC: ecdc_stream.py (-b <bitrate> -n <song-name> -s <source-url> -g
   - AL: 11729607
   - NC: 16
   - LM: False
-- When decoding (`-d`), the initial window size may be increased by specifying the bufsize (`-b`) parameter. This defaults to 1, which starts with a window size of 1 (lowest latency, Õ(2n) time complexity), increasing by 1 each time (amortised constant latency, Õ(n + sqrt(n)) time complexity). A value of 2 would start with a window size of 2 (slightly higher latency, Õ(3n/2) time complexity), increasing by 2 each time, and so on.
-  - A value of 0 may be specified to bypass the windowing completely, which will buffer the entire file before outputting (similar to the original Encodec implementation). This reduces the overhead to 0% or Õ(n) immediately, but has the drawback of much higher latency particularly on weaker hardware or longer files.
+- When decoding (`-d`), the initial window size may be increased by specifying the bufsize (`-b`) parameter. This defaults to 1, which starts with a window size of 1 (lowest latency, `Õ(2n)` time complexity), increasing by 1 each time (amortised constant latency, `Õ(n + 2sqrt(n))` time complexity). A value of 2 would start with a window size of 2 (slightly higher latency, `Õ(3n/2)` time complexity), increasing by 2 each time (`Õ(n + sqrt(n))` time complexity), and so on.
+  - A value of 0 may be specified to bypass the windowing completely, which will buffer the entire file before outputting (similar to the original Encodec implementation). This reduces the overhead to 0% or `Õ(n)` immediately, but has the drawback of much higher latency particularly on weaker hardware or longer files. This option is mostly intended to function as a slightly more efficient way to directly decode and convert without needing to stream.
 
 ## Hardware Requirements
 - A NVIDIA GPU (minimum GTX650) is recommended for both performance and efficiency, however any CPU with ~50 GFLOPS of performance (minimum Ryzen 5 5625U) should be capable of decoding and playing a realtime audio stream.
-- 2GB of RAM, or 1GB of RAM and 1GB of VRAM (such as in the GTX650) is more than sufficient for most everyday audio files. The increasing window algorithm has a space complexity of **O(sqrt n)**, meaning memory consumption is not typically a concern with encoding/decoding through Encodec. While running however, the PyTorch libraries may use up to 1GB, hence the conservative estimate.
+- 2GB of RAM, or 1GB of RAM and 1GB of VRAM (such as in the GTX650) is more than sufficient for most everyday audio files. The increasing window algorithm has a space complexity of `O(sqrt n)`, meaning memory consumption is not typically a concern with encoding/decoding through Encodec. While running however, the PyTorch libraries may use up to 1GB, hence the conservative estimate.
