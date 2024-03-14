@@ -1,5 +1,5 @@
 # Encodec-Stream
-A somewhat lightweight wrapper around [Encodec](https://github.com/facebookresearch/encodec) that enables dynamic streamed reading, seeking, metadata and GPU support.
+A somewhat lightweight wrapper around [Encodec](https://github.com/facebookresearch/encodec) that enables dynamic streamed reading, seeking, metadata, GPU support, streaming from URL, and arbitrary bitrates.
 
 ## Problem
 By nature, the ECDC format was originally intended to be encoded and decoded in a single step. This makes it efficient, but makes streaming incredibly difficult.
@@ -21,7 +21,7 @@ Example GPU usage trend during decoding (note the linearly increasing gap betwee
 ## Usage
 - Python must first be installed.
 - Encodec must be installed (`pip install git+https://github.com/facebookresearch/encodec`).
-- FFmpeg or a similar PCM-handling framework should be installed for best results (https://ffmpeg.org).
+- FFmpeg or a similar PCM-handling framework should be installed for most additional features (https://ffmpeg.org).
 ```
 Usage (arguments in parentheses are optional):
 Get ECDC info: ecdc_stream.py -i <file-or-url>
@@ -29,7 +29,7 @@ Decode ECDC->PCM: ecdc_stream.py (-ss <seek-start> -to <seek-end> -b <buffer-siz
 Encode PCM->ECDC: ecdc_stream.py (-b <bitrate> -n <song-name> -s <source-url> -g <cuda-device>) -e <file>
 ```
 
-- The program takes streamed inputs and outputs as PCM via stdin and stdout respectively, making it easy to integrate as a subprocess.
+- The program takes streamed inputs and outputs as PCM (s16le 48000r 2c) via stdin and stdout respectively, making it easy to integrate as a subprocess.
 - This is similar to, and intentionally designed to be compatible with `ffplay -f s16le -ac 2 -ar 48k (-i) -` and similar programs.
 - A simple use case for playing a .ecdc file without needing to process all data would be `py ecdc_stream.py -d <ecdc_file> | ffplay -f s16le -ac 2 -ar 48k -i -`.
 - Encoding any song to .ecdc can be done via `ffmpeg -i <song> -f s16le -ac 2 -ar 48k - | py ecdc_stream.py -b <bitrate> -e <file>`.
@@ -43,6 +43,7 @@ Encode PCM->ECDC: ecdc_stream.py (-b <bitrate> -n <song-name> -s <source-url> -g
   - AL: 11729607
   - NC: 16
   - LM: False
+- When encoding (`-e`), the quality may be controlled by the bitrate (`-b`) parameter. This defaults to 24k, but may accept any float above 0. Although the officially supported bitrates are 1.5k, 3k, 6k, 12k, and 24k, the wrapper will automatically resample the audio to make use of the next matching bitrate. This allows use of unsupported bitrates such as 0.1k, 3.5k, 8k, 28k, and 128k, but please keep in mind that extremely low and high bitrates will come with diminishing returns, and for any quality 48k and above it is recommended to simply use opus instead.
 - When decoding (`-d`), the initial window size may be increased by specifying the bufsize (`-b`) parameter. This defaults to 1, which starts with a window size of 1 (lowest latency, `Õ(2n)` time complexity), increasing by 1 each time (amortised constant latency, `Õ(n + 2sqrt(n))` time complexity). A value of 2 would start with a window size of 2 (slightly higher latency, `Õ(3n/2)` time complexity), increasing by 2 each time (`Õ(n + sqrt(n))` time complexity), and so on.
   - A value of 0 may be specified to bypass the windowing completely, which will buffer the entire file before outputting (similar to the original Encodec implementation). This reduces the overhead to 0% or `Õ(n)` immediately, but has the drawback of much higher latency particularly on weaker hardware or longer files. This option is mostly intended to function as a slightly more efficient way to directly decode and convert without needing to stream.
 
