@@ -19,9 +19,9 @@ Example GPU usage trend during decoding (note the linearly increasing gap betwee
 ![GPU usage trend during decoding](https://mizabot.xyz/u/EOVY6jGAAII.png)
 
 ## Usage
-- Python must be installed.
-- Encodec must first be installed (`pip install git+https://github.com/facebookresearch/encodec`).
-- FFmpeg should be installed for best results (https://ffmpeg.org).
+- Python must first be installed.
+- Encodec must be installed (`pip install git+https://github.com/facebookresearch/encodec`).
+- FFmpeg or a similar PCM-handling framework should be installed for best results (https://ffmpeg.org).
 ```
 Usage (arguments in parentheses are optional):
 Get ECDC info: ecdc_stream.py -i <file-or-url>
