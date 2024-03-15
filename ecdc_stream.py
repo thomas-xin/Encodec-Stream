@@ -90,7 +90,10 @@ if __name__ == "__main__":
 		if "sr" in metadata:
 			print("Sample Rate:", metadata.pop("sr"))
 		if "br" in metadata:
-			print("Bitrate:", metadata.pop("br"))
+			br = float(metadata.pop("br"))
+			if br == int(br):
+				br = int(br)
+			print("Bitrate:", br)
 		if "s" in metadata:
 			print("Source:", json.dumps(metadata.pop("s")))
 		for k, v in metadata.items():
@@ -118,6 +121,8 @@ if __name__ == "__main__":
 			i = sys.argv.index("-b")
 			sys.argv.pop(i)
 			bitrate = float(sys.argv.pop(i).removesuffix("k"))
+			if bitrate == int(bitrate):
+				bitrate = int(bitrate)
 		else:
 			bitrate = 24
 		fn = sys.argv[-1]
