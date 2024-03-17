@@ -1,4 +1,50 @@
-import os, sys
+import os, sys, json
+
+
+def get_info(fn):
+	is_url = lambda url: "://" in url and url.split("://", 1)[0].rstrip("s") in ("http", "hxxp", "ftp", "fxp")
+	if is_url(fn):
+		import urllib.request, random
+		def header():
+			return {
+				"User-Agent": f"Mozilla/5.{random.randint(1, 9)} (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
+				"DNT": "1",
+				"X-Forwarded-For": ".".join(str(random.randint(0, 255)) for _ in range(4)),
+			}
+		req = urllib.request.Request(fn, headers=header())
+		file = urllib.request.urlopen(req)
+	else:
+		file = open(fn, "rb")
+	magic = file.read(4)
+	version = file.read(1)[0]
+	meta_size = int.from_bytes(file.read(4), "big")
+	# fo = file
+	# from encodec import binary
+	# header_bytes = binary._read_exactly(fo, binary._encodec_header_struct.size)
+	# magic, version, meta_size = binary._encodec_header_struct.unpack(header_bytes)
+	if magic != b"ECDC":
+		raise ValueError("File is not in ECDC format.")
+	meta_bytes = file.read(meta_size)
+	# meta_bytes = binary._read_exactly(fo, meta_size)
+	metadata = json.loads(meta_bytes.decode('utf-8'))
+	out = {"Version": version}
+	if "n" in metadata:
+		out["Name"] = metadata.pop("n")
+	if "al" in metadata:
+		out["Duration"] = metadata["al"] / float(metadata.get("m", "_48").rsplit("_", 1)[-1].removesuffix("khz")) / 1000 * 48000 / metadata.get("sr", 48000)
+	if "sr" in metadata:
+		out["Sample Rate"] = metadata.pop("sr")
+	if "br" in metadata:
+		br = float(metadata.pop("br"))
+		if br == int(br):
+			br = int(br)
+		out["Bitrate"] = br
+	if "s" in metadata:
+		out["Source"] = metadata.pop("s")
+	for k, v in metadata.items():
+		out[k.upper()] = v
+	return out
+
 if __name__ == "__main__":
 	if "-g" in sys.argv:
 		i = sys.argv.index("-g")
@@ -15,7 +61,13 @@ if __name__ == "__main__":
 			+ f"Decode ECDC->PCM: {sys.argv[0]} (-ss <seek-start> -to <seek-end> -b <buffer-size> -g <cuda-device>) -d <file-or-url>\n"
 			+ f"Encode PCM->ECDC: {sys.argv[0]} (-b <bitrate> -n <song-name> -s <source-url> -g <cuda-device>) -e <file-or-url>\n"
 		)
-	if "-d" in sys.argv:
+	if "-i" in sys.argv:
+		sys.argv.remove("-i")
+		fn = sys.argv[-1]
+		info = get_info(fn)
+		print("\n".join(f"{k}: {json.dumps(v)}" for k, v in info.items()))
+		raise SystemExit
+	elif "-d" in sys.argv:
 		mode = "decode"
 		sys.argv.remove("-d")
 		if "-ss" in sys.argv:
@@ -52,53 +104,6 @@ if __name__ == "__main__":
 			file = urllib.request.urlopen(req)
 		else:
 			file = open(fn, "rb")
-	elif "-i" in sys.argv:
-		mode = "info"
-		sys.argv.remove("-i")
-		fn = sys.argv[-1]
-		is_url = lambda url: "://" in url and url.split("://", 1)[0].rstrip("s") in ("http", "hxxp", "ftp", "fxp")
-		if is_url(fn):
-			import urllib.request, random
-			def header():
-				return {
-					"User-Agent": f"Mozilla/5.{random.randint(1, 9)} (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
-					"DNT": "1",
-					"X-Forwarded-For": ".".join(str(random.randint(0, 255)) for _ in range(4)),
-				}
-			req = urllib.request.Request(fn, headers=header())
-			file = urllib.request.urlopen(req)
-		else:
-			file = open(fn, "rb")
-		magic = file.read(4)
-		version = file.read(1)[0]
-		meta_size = int.from_bytes(file.read(4), "big")
-		# fo = file
-		# from encodec import binary
-		# header_bytes = binary._read_exactly(fo, binary._encodec_header_struct.size)
-		# magic, version, meta_size = binary._encodec_header_struct.unpack(header_bytes)
-		if magic != b"ECDC":
-			raise ValueError("File is not in ECDC format.")
-		print("Version:", version)
-		meta_bytes = file.read(meta_size)
-		# meta_bytes = binary._read_exactly(fo, meta_size)
-		import json
-		metadata = json.loads(meta_bytes.decode('utf-8'))
-		if "n" in metadata:
-			print("Name:", json.dumps(metadata.pop("n")))
-		if "al" in metadata:
-			print("Duration:", metadata["al"] / float(metadata.get("m", "_48").rsplit("_", 1)[-1].removesuffix("khz")) / 1000 * 48000 / metadata.get("sr", 48000))
-		if "sr" in metadata:
-			print("Sample Rate:", metadata.pop("sr"))
-		if "br" in metadata:
-			br = float(metadata.pop("br"))
-			if br == int(br):
-				br = int(br)
-			print("Bitrate:", br)
-		if "s" in metadata:
-			print("Source:", json.dumps(metadata.pop("s")))
-		for k, v in metadata.items():
-			print(f"{k.upper()}:", v)
-		raise SystemExit
 	else:
 		mode = "encode"
 		sys.argv.remove("-e")
@@ -131,26 +136,7 @@ if __name__ == "__main__":
 		file = io.BytesIO()
 
 
-import io
-import math
-import struct
-import subprocess
-import time
-import typing as tp
-import torch
-
-import encodec
-from encodec import binary
-from encodec.quantization.ac import ArithmeticCoder, ArithmeticDecoder, build_stable_quantized_cdf
-from encodec.model import EncodecModel, EncodedFrame
-
-MODELS = {
-	'encodec_24khz': EncodecModel.encodec_model_24khz,
-	'encodec_48khz': EncodecModel.encodec_model_48khz,
-}
-
-
-def stream_from_file(fo: tp.IO[bytes], s_start: float = 0, s_end: float = 0, device='cpu', bufsize=1) -> tp.Tuple[torch.Tensor, int]:
+def stream_from_file(fo, s_start: float = 0, s_end: float = 0, device='cpu', bufsize=1):
 	"""Stream from a file-object.
 	Returns a tuple `(wav, sample_rate)`.
 
@@ -166,13 +152,7 @@ def stream_from_file(fo: tp.IO[bytes], s_start: float = 0, s_end: float = 0, dev
 	if version not in (0, 192, 193):
 		raise ValueError("Version not supported.")
 	meta_bytes = binary._read_exactly(fo, meta_size)
-	try:
-		import orjson
-	except ImportError:
-		import json
-		metadata = json.loads(meta_bytes.decode('utf-8'))
-	else:
-		metadata = orjson.loads(meta_bytes)
+	metadata = json.loads(meta_bytes.decode('utf-8'))
 	model_name = metadata['m']
 	audio_length = metadata['al']
 	num_codebooks = metadata['nc']
@@ -287,7 +267,7 @@ def stream_from_file(fo: tp.IO[bytes], s_start: float = 0, s_end: float = 0, dev
 			i += 1
 	return outputs, write_to()
 
-def stream_to_file(fo: tp.IO[bytes], use_lm: bool = False, hq: bool = True, bitrate: float = 24, name=None, source=None, device='cpu'):
+def stream_to_file(fo, use_lm: bool = False, hq: bool = True, bitrate: float = 24, name=None, source=None, device='cpu'):
 	"""Compress a waveform to a file-object using the given model.
 
 	Args:
@@ -360,13 +340,7 @@ def stream_to_file(fo: tp.IO[bytes], use_lm: bool = False, hq: bool = True, bitr
 		metadata["n"] = name
 	if source:
 		metadata["s"] = source
-	try:
-		import orjson
-	except:
-		import json
-		meta_dumped = json.dumps(metadata, indent=None, separators=(",", ":")).encode('utf-8')
-	else:
-		meta_dumped = orjson.dumps(metadata)
+	meta_dumped = json.dumps(metadata, indent=None, separators=(",", ":")).encode('utf-8')
 	version = 193
 	header = binary._encodec_header_struct.pack(binary._ENCODEC_MAGIC, version, len(meta_dumped))
 	fo.write(header)
@@ -403,20 +377,36 @@ def stream_to_file(fo: tp.IO[bytes], use_lm: bool = False, hq: bool = True, bitr
 		packer.flush()
 
 
-if os.path.exists("auth.json"):
-	import json
-	with open("auth.json", "rb") as f:
-		AUTH = json.load(f)
-	cachedir = AUTH.get("cache_path") or None
-	if cachedir:
-		os.environ["HF_HOME"] = f"{cachedir}/huggingface"
-		os.environ["TORCH_HOME"] = f"{cachedir}/torch"
-		os.environ["HUGGINGFACE_HUB_CACHE"] = f"{cachedir}/huggingface/hub"
-		os.environ["TRANSFORMERS_CACHE"] = f"{cachedir}/huggingface/transformers"
-		os.environ["HF_DATASETS_CACHE"] = f"{cachedir}/huggingface/datasets"
-
-
 if __name__ == "__main__":
+	import io
+	import math
+	import struct
+	import subprocess
+	import time
+	import typing as tp
+	import torch
+
+	import encodec
+	from encodec import binary
+	from encodec.quantization.ac import ArithmeticCoder, ArithmeticDecoder, build_stable_quantized_cdf
+	from encodec.model import EncodecModel, EncodedFrame
+
+	MODELS = {
+		'encodec_24khz': EncodecModel.encodec_model_24khz,
+		'encodec_48khz': EncodecModel.encodec_model_48khz,
+	}
+
+	if os.path.exists("auth.json"):
+		with open("auth.json", "rb") as f:
+			AUTH = json.load(f)
+		cachedir = AUTH.get("cache_path") or None
+		if cachedir:
+			os.environ["HF_HOME"] = f"{cachedir}/huggingface"
+			os.environ["TORCH_HOME"] = f"{cachedir}/torch"
+			os.environ["HUGGINGFACE_HUB_CACHE"] = f"{cachedir}/huggingface/hub"
+			os.environ["TRANSFORMERS_CACHE"] = f"{cachedir}/huggingface/transformers"
+			os.environ["HF_DATASETS_CACHE"] = f"{cachedir}/huggingface/datasets"
+
 	if not torch.cuda.is_available():
 		device = "cpu"
 	elif device is None or device < 0:
