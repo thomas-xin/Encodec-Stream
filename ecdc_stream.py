@@ -39,6 +39,8 @@ def get_info(fn):
 		if br == int(br):
 			br = int(br)
 		out["Bitrate"] = br
+	if "t" in metadata:
+		out["Thumbnail"] = metadata.pop("t")
 	if "s" in metadata:
 		out["Source"] = metadata.pop("s")
 	for k, v in metadata.items():
@@ -116,6 +118,12 @@ if __name__ == "__main__":
 				name = base64.b64decode(name.encode("ascii") + b"==").decode("utf-8", "replace")
 		else:
 			name = None
+		if "-t" in sys.argv:
+			i = sys.argv.index("-t")
+			sys.argv.pop(i)
+			thumbnail = sys.argv.pop(i)
+		else:
+			thumbnail = None
 		if "-s" in sys.argv:
 			i = sys.argv.index("-s")
 			sys.argv.pop(i)
@@ -267,7 +275,7 @@ def stream_from_file(fo, s_start: float = 0, s_end: float = 0, device='cpu', buf
 			i += 1
 	return outputs, write_to()
 
-def stream_to_file(fo, use_lm: bool = False, hq: bool = True, bitrate: float = 24, name=None, source=None, device='cpu'):
+def stream_to_file(fo, use_lm: bool = False, hq: bool = True, bitrate: float = 24, name=None, source=None, thumbnail=None, device='cpu'):
 	"""Compress a waveform to a file-object using the given model.
 
 	Args:
@@ -340,6 +348,8 @@ def stream_to_file(fo, use_lm: bool = False, hq: bool = True, bitrate: float = 2
 		metadata["n"] = name
 	if source:
 		metadata["s"] = source
+	if thumbnail:
+		metadata["t"] = thumbnail
 	meta_dumped = json.dumps(metadata, indent=None, separators=(",", ":")).encode('utf-8')
 	version = 193
 	header = binary._encodec_header_struct.pack(binary._ENCODEC_MAGIC, version, len(meta_dumped))
@@ -451,7 +461,7 @@ if __name__ == "__main__":
 		output.close()
 		exc.shutdown()
 	else:
-		stream_to_file(file, name=name, source=source, bitrate=bitrate, device=device)
+		stream_to_file(file, name=name, source=source, thumbnail=thumbnail, bitrate=bitrate, device=device)
 		file.seek(0)
 		with open(rfile, "wb") as f:
 			f.write(file.getbuffer())
