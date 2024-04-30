@@ -323,10 +323,14 @@ def stream_to_file(fo, use_lm: bool = False, hq: bool = True, bitrate: float = 2
 
 	dtype = torch.float32# if device in (-1, "cpu") else torch.float16
 	data = inputs.read()
-	if hq:
-		wav = torch.frombuffer(data, dtype=torch.int16).reshape((len(data) // 4, 2)).T.to(device=device)
-	else:
-		wav = torch.frombuffer(data, dtype=torch.int16).reshape((len(data) // 2, 1)).T.to(device=device)
+	import warnings
+	with warnings.catch_warnings():
+		warnings.simplefilter("ignore", UserWarning)
+		if hq:
+			wav = torch.frombuffer(data, dtype=torch.int16).reshape((len(data) // 4, 2))
+		else:
+			wav = torch.frombuffer(data, dtype=torch.int16).reshape((len(data) // 2, 1))
+	wav = wav.T.to(device=device)
 	high = 32767 + (-32768 in wav)
 	wav = wav.to(dtype)
 	wav *= 1 / high
@@ -388,6 +392,17 @@ def stream_to_file(fo, use_lm: bool = False, hq: bool = True, bitrate: float = 2
 
 
 if __name__ == "__main__":
+	if os.path.exists("auth.json"):
+		with open("auth.json", "rb") as f:
+			AUTH = json.load(f)
+		cachedir = AUTH.get("cache_path") or None
+		if cachedir:
+			os.environ["HF_HOME"] = f"{cachedir}/huggingface"
+			os.environ["TORCH_HOME"] = f"{cachedir}/torch"
+			os.environ["HUGGINGFACE_HUB_CACHE"] = f"{cachedir}/huggingface/hub"
+			os.environ["TRANSFORMERS_CACHE"] = f"{cachedir}/huggingface/transformers"
+			os.environ["HF_DATASETS_CACHE"] = f"{cachedir}/huggingface/datasets"
+
 	import io
 	import math
 	import struct
@@ -405,17 +420,6 @@ if __name__ == "__main__":
 		'encodec_24khz': EncodecModel.encodec_model_24khz,
 		'encodec_48khz': EncodecModel.encodec_model_48khz,
 	}
-
-	if os.path.exists("auth.json"):
-		with open("auth.json", "rb") as f:
-			AUTH = json.load(f)
-		cachedir = AUTH.get("cache_path") or None
-		if cachedir:
-			os.environ["HF_HOME"] = f"{cachedir}/huggingface"
-			os.environ["TORCH_HOME"] = f"{cachedir}/torch"
-			os.environ["HUGGINGFACE_HUB_CACHE"] = f"{cachedir}/huggingface/hub"
-			os.environ["TRANSFORMERS_CACHE"] = f"{cachedir}/huggingface/transformers"
-			os.environ["HF_DATASETS_CACHE"] = f"{cachedir}/huggingface/datasets"
 
 	if not torch.cuda.is_available():
 		device = "cpu"
