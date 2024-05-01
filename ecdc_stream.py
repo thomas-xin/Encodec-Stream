@@ -291,6 +291,8 @@ def stream_to_file(fo, use_lm: bool = False, hq: bool = True, bitrate: float = 2
 	"""
 	hq = hq and bitrate >= 3
 	sr = 48000 if hq else 24000
+	if bitrate <= 0:
+		raise ValueError("Negative or zero bitrate specified.")
 	r = math.log2(bitrate / 3)
 	target_br = 3 * 2 ** (r // 1)
 	sr_scale = 2 ** (r % 1)
