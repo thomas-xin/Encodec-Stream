@@ -431,6 +431,7 @@ if __name__ == "__main__":
 			device = "cuda"
 		else:
 			device = f"cuda:{random.randint(0, torch.cuda.device_count() - 1)}"
+		print(f"No device selected, but hardware acceleration is available. Auto-selecting device {device}...")
 	device = torch.device(device)
 	if mode == "decode":
 		# Read using a parallel thread; this avoids delays from blocking
